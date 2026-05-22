@@ -150,7 +150,7 @@
         "dataFlows": [
           {
             "streams": [
-              "Custom-Metrics-OTEL"
+              "Custom-Metrics-Otel"
             ],
             "destinations": [
               "myAMW"
