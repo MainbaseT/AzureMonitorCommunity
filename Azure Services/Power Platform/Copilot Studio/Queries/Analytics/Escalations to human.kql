@@ -1,0 +1,16 @@
+// Author: russrimm
+// Display name: Copilot Studio - Escalations to Human
+// Description: Daily count of topics that escalated to a human agent
+// Categories: Power Platform
+// Resource types: Copilot Studio
+// Topic: Usage Analytics
+
+union isfuzzy=true (AppCustomEvents
+| where TimeGenerated > ago(30d)
+| where Properties["designMode"] != "True"
+| where Name == "DialogStart"
+| where tolower(tostring(Properties["dialogName"])) contains "escalat"
+    or tolower(tostring(Properties["dialogName"])) contains "human"
+    or tolower(tostring(Properties["dialogName"])) contains "agent"
+| summarize Count=count() by Day=bin(TimeGenerated, 1d)
+| order by Day asc)

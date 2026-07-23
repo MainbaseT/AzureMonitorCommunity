@@ -1,0 +1,13 @@
+// Author: russrimm
+// Display name: Connectors - Top 20 Most Used Connectors
+// Description: Highest-volume connectors by invocation count
+// Categories: Power Platform
+// Resource types: Power Platform Connectors
+// Topic: Usage Analytics
+// Prerequisites: Power Platform admin diagnostic settings connected to Log Analytics workspace
+
+PowerPlatformConnectorActivity
+| where TimeGenerated > ago(30d)
+| summarize Calls=count(), UniqueUsers=dcount(UserId) by ConnectorId
+| order by Calls desc
+| take 20

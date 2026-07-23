@@ -1,0 +1,20 @@
+// Author: russrimm
+// Display name: Copilot Studio - Test Canvas Errors
+// Description: Dialog failures and errors encountered during test canvas sessions
+// Categories: Power Platform
+// Resource types: Copilot Studio
+// Topic: Testing
+
+union isfuzzy=true (AppCustomEvents
+| where TimeGenerated > ago(7d)
+| where Properties["designMode"] == "True"
+| where Name in ("DialogFail", "WaterfallFail", "GenerativeAnswerResult")
+| extend IsError = Name in ("DialogFail", "WaterfallFail")
+| extend NoAnswer = Name == "GenerativeAnswerResult" and tobool(Properties["hasAnswer"]) == false
+| where IsError or NoAnswer
+| project TimeGenerated,
+    EventType = Name,
+    Topic = tostring(Properties["dialogName"]),
+    ConversationId = tostring(Properties["conversationId"])
+| order by TimeGenerated desc
+| take 50)

@@ -1,0 +1,13 @@
+// Author: russrimm
+// Display name: Power Pages - Authentication Events
+// Description: Login, logout, and authentication failure events for Power Pages sites
+// Categories: Power Platform
+// Resource types: Power Pages
+// Topic: Security
+// Prerequisites: Power Platform admin diagnostic settings connected to Log Analytics workspace
+
+PowerPagesActivity
+| where TimeGenerated > ago(30d)
+| where EventType has_any ("Login", "Logout", "AuthFail", "Authentication")
+| summarize Count=count() by EventType, Day=bin(TimeGenerated, 1d)
+| order by Day asc

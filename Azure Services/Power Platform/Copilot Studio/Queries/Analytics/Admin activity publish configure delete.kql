@@ -1,0 +1,14 @@
+// Author: russrimm
+// Display name: Copilot Studio - Admin Activity (Publish, Configure, Delete)
+// Description: Bot publish, configuration changes, and deletions from PowerPlatformAdminActivity
+// Categories: Power Platform
+// Resource types: Copilot Studio
+// Topic: Governance
+// Prerequisites: Power Platform admin activity logs connected to Log Analytics workspace
+
+union isfuzzy=true (PowerPlatformAdminActivity
+| where TimeGenerated > ago(30d)
+| where EntityType == "Bot"
+| project TimeGenerated, Operation, EntityName, ResultStatus, UserId, UserName
+| order by TimeGenerated desc
+| take 100)

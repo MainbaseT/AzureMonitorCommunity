@@ -1,0 +1,17 @@
+// Author: russrimm
+// Display name: Copilot Studio - Test Canvas Topic Coverage
+// Description: Topics exercised during test canvas sessions - useful to verify test coverage
+// Categories: Power Platform
+// Resource types: Copilot Studio
+// Topic: Testing
+
+union isfuzzy=true (AppCustomEvents
+| where TimeGenerated > ago(7d)
+| where Properties["designMode"] == "True"
+| where Name == "DialogStart"
+| summarize
+    Triggered=count(),
+    Completed=countif(Name=="DialogComplete"),
+    LastTested=max(TimeGenerated)
+    by Topic=tostring(Properties["dialogName"])
+| order by LastTested desc)

@@ -1,0 +1,13 @@
+// Author: russrimm
+// Display name: Copilot Studio - Dialog Errors
+// Description: Failed dialogs and waterfall step failures per day
+// Categories: Power Platform
+// Resource types: Copilot Studio
+// Topic: Troubleshooting
+
+union isfuzzy=true (AppCustomEvents
+| where TimeGenerated > ago(30d)
+| where Properties["designMode"] != "True"
+| where Name in ("DialogFail", "WaterfallFail")
+| summarize Errors=count() by Day=bin(TimeGenerated, 1d), ErrorType=Name
+| order by Day asc)

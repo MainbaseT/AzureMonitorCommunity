@@ -1,0 +1,20 @@
+// Author: russrimm
+// Display name: Copilot Studio - 30-Day Session Summary
+// Description: Total sessions, messages, topics triggered, and error count over the last 30 days
+// Categories: Power Platform
+// Resource types: Copilot Studio
+// Topic: Usage Analytics
+
+union isfuzzy=true (AppCustomEvents
+| where TimeGenerated > ago(30d)
+| where Properties["designMode"] != "True"
+| summarize
+    TotalSessions=dcount(tostring(Properties["conversationId"])),
+    MessagesReceived=countif(Name=="BotMessageReceived"),
+    MessagesSent=countif(Name=="BotMessageSend"),
+    TopicsStarted=countif(Name=="DialogStart"),
+    TopicsCompleted=countif(Name=="DialogComplete"),
+    GenerativeAnswered=countif(Name=="GenerativeAnswerResult" and tobool(Properties["hasAnswer"])==true),
+    DialogErrors=countif(Name in ("DialogFail","WaterfallFail"))
+| extend CompletionRate=round(todouble(TopicsCompleted)/todouble(TopicsStarted)*100, 1)
+| project TotalSessions, MessagesReceived, MessagesSent, TopicsStarted, TopicsCompleted, CompletionRate, GenerativeAnswered, DialogErrors)

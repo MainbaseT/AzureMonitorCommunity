@@ -1,0 +1,13 @@
+// Author: russrimm
+// Display name: Power Pages - Site Traffic by Day
+// Description: Daily page views and unique visitors across Power Pages sites
+// Categories: Power Platform
+// Resource types: Power Pages
+// Topic: Usage Analytics
+// Prerequisites: Power Platform admin diagnostic settings connected to Log Analytics workspace
+
+PowerPagesActivity
+| where TimeGenerated > ago(30d)
+| where EventType == "PageView"
+| summarize PageViews=count(), UniqueVisitors=dcount(UserId) by Day=bin(TimeGenerated, 1d)
+| order by Day asc

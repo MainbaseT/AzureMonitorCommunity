@@ -1,0 +1,15 @@
+// Author: russrimm
+// Display name: Copilot Studio - Bot Conversations (BotConversationEvent)
+// Description: All conversation events from the native Power Platform BotConversationEvent table
+// Categories: Power Platform
+// Resource types: Copilot Studio
+// Topic: Usage Analytics
+// Prerequisites: Power Platform diagnostic settings connected to Log Analytics workspace
+
+union isfuzzy=true (BotConversationEvent
+| where TimeGenerated > ago(7d)
+| summarize
+    Sessions=dcount(ConversationId),
+    Events=count()
+    by Day=bin(TimeGenerated, 1d), Channel
+| order by Day asc)

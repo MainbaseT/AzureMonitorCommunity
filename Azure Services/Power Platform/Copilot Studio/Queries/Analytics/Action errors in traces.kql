@@ -1,0 +1,14 @@
+// Author: russrimm
+// Display name: Copilot Studio - Action Errors in Traces
+// Description: Failed action or plugin calls captured in AppTraces during bot conversations
+// Categories: Power Platform
+// Resource types: Copilot Studio
+// Topic: Troubleshooting
+
+union isfuzzy=true (AppTraces
+| where TimeGenerated > ago(7d)
+| where SeverityLevel >= 2
+| where Message has_any ("PowerAutomate", "HttpAction", "SkillAction", "ActionResult", "PluginAction", "connector", "action")
+| project TimeGenerated, SeverityLevel, Message, Properties
+| order by TimeGenerated desc
+| take 50)

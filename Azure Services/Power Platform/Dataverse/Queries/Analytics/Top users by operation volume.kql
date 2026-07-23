@@ -1,0 +1,13 @@
+// Author: russrimm
+// Display name: Dataverse - Top Users by Operation Volume
+// Description: Most active Dataverse users by total operations
+// Categories: Power Platform
+// Resource types: Dataverse
+// Topic: Usage Analytics
+// Prerequisites: Power Platform admin diagnostic settings connected to Log Analytics workspace
+
+DataverseActivity
+| where TimeGenerated > ago(30d)
+| summarize Operations=count(), DistinctTables=dcount(EntityName) by UserId
+| order by Operations desc
+| take 20

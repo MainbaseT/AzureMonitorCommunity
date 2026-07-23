@@ -1,0 +1,14 @@
+// Author: russrimm
+// Display name: Power Pages - Page Errors (4xx/5xx)
+// Description: HTTP errors and server-side failures on Power Pages sites
+// Categories: Power Platform
+// Resource types: Power Pages
+// Topic: Troubleshooting
+// Prerequisites: Power Platform admin diagnostic settings connected to Log Analytics workspace
+
+PowerPagesActivity
+| where TimeGenerated > ago(7d)
+| where ResultStatus startswith "4" or ResultStatus startswith "5" or ResultStatus == "Failure"
+| project TimeGenerated, EventType, Url=tostring(AdditionalInfo), ResultStatus, UserId
+| order by TimeGenerated desc
+| take 100

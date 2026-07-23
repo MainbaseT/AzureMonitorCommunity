@@ -1,0 +1,14 @@
+// Author: russrimm
+// Display name: Power Apps - App Errors and Failures
+// Description: Failed app operations with error details
+// Categories: Power Platform
+// Resource types: Power Apps
+// Topic: Troubleshooting
+// Prerequisites: Power Platform admin diagnostic settings connected to Log Analytics workspace
+
+PowerAppsActivity
+| where TimeGenerated > ago(7d)
+| where ResultStatus == "Failure" or ResultStatus == "Failed"
+| project TimeGenerated, EventType, AppName, UserId, ResultStatus, ErrorMessage=tostring(AdditionalInfo)
+| order by TimeGenerated desc
+| take 100

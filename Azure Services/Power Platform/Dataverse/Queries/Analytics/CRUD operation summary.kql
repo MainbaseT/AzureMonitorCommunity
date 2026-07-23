@@ -1,0 +1,12 @@
+// Author: russrimm
+// Display name: Dataverse - CRUD Operation Summary
+// Description: Daily create, read, update, delete operation counts across Dataverse
+// Categories: Power Platform
+// Resource types: Dataverse
+// Topic: Usage Analytics
+// Prerequisites: Power Platform admin diagnostic settings connected to Log Analytics workspace
+
+DataverseActivity
+| where TimeGenerated > ago(30d)
+| summarize Count=count() by Operation, Day=bin(TimeGenerated, 1d)
+| order by Day asc

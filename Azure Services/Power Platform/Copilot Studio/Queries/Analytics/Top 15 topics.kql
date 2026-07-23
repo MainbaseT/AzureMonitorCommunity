@@ -1,0 +1,14 @@
+// Author: russrimm
+// Display name: Copilot Studio - Top 15 Topics
+// Description: Most frequently triggered dialog topics, excluding test canvas
+// Categories: Power Platform
+// Resource types: Copilot Studio
+// Topic: Usage Analytics
+
+union isfuzzy=true (AppCustomEvents
+| where TimeGenerated > ago(30d)
+| where Properties["designMode"] != "True"
+| where Name == "DialogStart"
+| summarize Triggers=count() by Topic=tostring(Properties["dialogName"])
+| order by Triggers desc
+| take 15)

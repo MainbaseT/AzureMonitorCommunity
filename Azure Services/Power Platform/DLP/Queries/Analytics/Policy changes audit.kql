@@ -1,0 +1,14 @@
+// Author: russrimm
+// Display name: DLP - Policy Changes Audit
+// Description: DLP policy create, update, and delete operations
+// Categories: Power Platform
+// Resource types: Power Platform DLP
+// Topic: Governance
+// Prerequisites: Power Platform admin diagnostic settings connected to Log Analytics workspace
+
+PowerPlatformDlpActivity
+| where TimeGenerated > ago(30d)
+| where EventType has_any ("PolicyCreate", "PolicyUpdate", "PolicyDelete", "Create", "Update", "Delete")
+| project TimeGenerated, EventType, PolicyName=tostring(AdditionalInfo), UserId, ResultStatus
+| order by TimeGenerated desc
+| take 100

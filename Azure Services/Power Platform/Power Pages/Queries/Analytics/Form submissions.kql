@@ -1,0 +1,13 @@
+// Author: russrimm
+// Display name: Power Pages - Form Submissions
+// Description: Form submission activity across Power Pages sites
+// Categories: Power Platform
+// Resource types: Power Pages
+// Topic: Usage Analytics
+// Prerequisites: Power Platform admin diagnostic settings connected to Log Analytics workspace
+
+PowerPagesActivity
+| where TimeGenerated > ago(30d)
+| where EventType has_any ("FormSubmit", "EntityForm", "WebForm")
+| summarize Submissions=count() by EventType, Day=bin(TimeGenerated, 1d)
+| order by Day asc

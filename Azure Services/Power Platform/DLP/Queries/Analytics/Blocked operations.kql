@@ -1,0 +1,14 @@
+// Author: russrimm
+// Display name: DLP - Blocked Operations
+// Description: Operations blocked by DLP policies with details
+// Categories: Power Platform
+// Resource types: Power Platform DLP
+// Topic: Security
+// Prerequisites: Power Platform admin diagnostic settings connected to Log Analytics workspace
+
+PowerPlatformDlpActivity
+| where TimeGenerated > ago(7d)
+| where ResultStatus == "Blocked" or EventType has "Block"
+| project TimeGenerated, EventType, ConnectorId, PolicyName=tostring(AdditionalInfo), UserId
+| order by TimeGenerated desc
+| take 100
