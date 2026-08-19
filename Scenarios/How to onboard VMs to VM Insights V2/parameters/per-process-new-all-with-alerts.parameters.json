@@ -1,0 +1,22 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+    "contentVersion": "1.0.0.0",
+    "metadata": {
+        "description": "Per-process metrics (paid tier) with all recommended alerts. Creates new AMW, LA workspace, and DCR with both OTel and InsightsMetrics/DetailedMetrics data sources."
+    },
+    "parameters": {
+        "vmName":                            { "value": "<YOUR_VM_NAME>" },
+        "vmResourceGroup":                   { "value": "<YOUR_VM_RESOURCE_GROUP>" },
+        "vmSubscriptionId":                  { "value": "<YOUR_SUBSCRIPTION_ID>" },
+        "location":                          { "value": "<YOUR_LOCATION>" },
+        "osType":                            { "value": "Linux" },
+        "createNewAmw":                      { "value": true },
+        "amwName":                           { "value": "<YOUR_AMW_NAME>" },
+        "createNewLogAnalyticsWorkspace":     { "value": true },
+        "logAnalyticsWorkspaceName":          { "value": "<YOUR_LA_WORKSPACE_NAME>" },
+        "createNewDcr":                      { "value": true },
+        "enablePerProcessMetrics":           { "value": true },
+        "enableAlerts":                      { "value": true },
+        "uamiResourceId":                    { "value": "/subscriptions/<SUB>/resourceGroups/<RG>/providers/Microsoft.ManagedIdentity/userAssignedIdentities/<UAMI_NAME>" }
+    }
+}
