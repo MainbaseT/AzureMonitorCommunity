@@ -117,9 +117,9 @@ $userAgents = @(
     'Mozilla/5.0 (iPhone; CPU iPhone OS 17_4 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.3 Mobile/15E148 Safari/604.1'
     'Mozilla/5.0 (iPhone; CPU iPhone OS 17_4 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) CriOS/122.0.6261.62 Mobile/15E148 Safari/604.1'
     'Mozilla/5.0 (iPad; CPU OS 17_4 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.3 Mobile/15E148 Safari/604.1'
-    'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)'
-    'Mozilla/5.0 (compatible; bingbot/2.0; +http://www.bing.com/bingbot.htm)'
-    'Mozilla/5.0 (compatible; AhrefsBot/7.0; +http://ahrefs.com/robot/)'
+    'Mozilla/5.0 (compatible; ContosoBot/1.0; +https://contoso.example.com/bot)'
+    'Mozilla/5.0 (compatible; ExampleSearchBot/1.0; +https://search.example.com/bot)'
+    'Mozilla/5.0 (compatible; ExampleCrawler/1.0; +https://crawler.example.com/bot)'
     'curl/8.5.0'
     'Python-urllib/3.12'
     'axios/1.6.7'
@@ -140,31 +140,32 @@ $referers = @(
 
 # --- Helper functions ---
 
+function Get-SeededRandomInt {
+    param([int]$Minimum, [int]$Maximum)
+    return $script:Random.Next($Minimum, $Maximum) # Maximum is exclusive (matches Get-Random)
+}
+
+function Get-SeededRandomItem {
+    param([object[]]$Items)
+    return $Items[$script:Random.Next(0, $Items.Count)]
+}
+
 function Get-SyntheticIP {
-    # Generate RFC 5737 documentation-range IPs (198.51.100.x, 203.0.113.x)
-    # and 10.x.x.x private range
-    $ranges = @(
-        @{ Prefix = "198.51.100"; Max = 254 }
-        @{ Prefix = "203.0.113"; Max = 254 }
-        @{ Prefix = "10.0"; TwoOctet = $true }
-    )
-    $range = $ranges | Get-Random
-    if ($range.TwoOctet) {
-        return "$($range.Prefix).$(Get-Random -Minimum 1 -Maximum 255).$(Get-Random -Minimum 1 -Maximum 255)"
-    }
-    return "$($range.Prefix).$(Get-Random -Minimum 1 -Maximum $range.Max)"
+    # RFC 5737 documentation-range IPs (198.51.100.0/24, 203.0.113.0/24)
+    $prefix = Get-SeededRandomItem @("198.51.100", "203.0.113")
+    return "$prefix.$(Get-SeededRandomInt -Minimum 1 -Maximum 255)"
 }
 
 function Get-ResponseSize {
     param([int]$StatusCode, [string]$Path)
     switch ($StatusCode) {
         304 { return 0 }
-        { $_ -ge 400 } { return Get-Random -Minimum 150 -Maximum 600 }
+        { $_ -ge 400 } { return Get-SeededRandomInt -Minimum 150 -Maximum 600 }
         default {
-            if ($Path -match '\.(png|jpg|webp|woff2)$') { return Get-Random -Minimum 5000 -Maximum 150000 }
-            if ($Path -match '\.(css|js)$') { return Get-Random -Minimum 800 -Maximum 45000 }
-            if ($Path -match '^/api/') { return Get-Random -Minimum 50 -Maximum 8000 }
-            return Get-Random -Minimum 1200 -Maximum 35000
+            if ($Path -match '\.(png|jpg|webp|woff2)$') { return Get-SeededRandomInt -Minimum 5000 -Maximum 150000 }
+            if ($Path -match '\.(css|js)$') { return Get-SeededRandomInt -Minimum 800 -Maximum 45000 }
+            if ($Path -match '^/api/') { return Get-SeededRandomInt -Minimum 50 -Maximum 8000 }
+            return Get-SeededRandomInt -Minimum 1200 -Maximum 35000
         }
     }
 }
