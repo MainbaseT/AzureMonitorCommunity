@@ -1,0 +1,13 @@
+// Author: russrimm
+// Display name: DLP - Policy Violations Over Time
+// Description: Daily DLP policy violation counts across Power Platform
+// Categories: Power Platform
+// Resource types: Power Platform DLP
+// Topic: Security
+// Prerequisites: Power Platform admin diagnostic settings connected to Log Analytics workspace
+
+PowerPlatformDlpActivity
+| where TimeGenerated > ago(30d)
+| where EventType has "Violation"
+| summarize Violations=count() by PolicyName=tostring(AdditionalInfo), Day=bin(TimeGenerated, 1d)
+| order by Day asc

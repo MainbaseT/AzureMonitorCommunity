@@ -1,0 +1,20 @@
+// Author: russrimm
+// Display name: Copilot Studio - Top Topics by Outcome (BotConversationEvent)
+// Description: Most-triggered dialog topics broken down by outcome
+// Categories: Power Platform
+// Resource types: Copilot Studio
+// Topic: Usage Analytics
+// Prerequisites: Power Platform diagnostic settings connected to Log Analytics workspace
+
+union isfuzzy=true (BotConversationEvent
+| where TimeGenerated > ago(30d)
+| summarize
+    Total=count(),
+    Resolved=countif(Outcome == "Success"),
+    Escalated=countif(Outcome == "Escalated"),
+    Failed=countif(Outcome == "Failure")
+    by Topic=DialogId
+| where Total > 0
+| extend ResolutionRate=round(todouble(Resolved)/todouble(Total)*100, 1)
+| order by Total desc
+| take 20)

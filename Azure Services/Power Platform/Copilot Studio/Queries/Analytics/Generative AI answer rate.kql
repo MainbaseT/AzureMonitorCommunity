@@ -1,0 +1,18 @@
+// Author: russrimm
+// Display name: Copilot Studio - Generative AI Answer Rate
+// Description: Daily generative answer rate and average confidence, excluding test canvas
+// Categories: Power Platform
+// Resource types: Copilot Studio
+// Topic: Usage Analytics
+
+union isfuzzy=true (AppCustomEvents
+| where TimeGenerated > ago(30d)
+| where Properties["designMode"] != "True"
+| where Name == "GenerativeAnswerResult"
+| summarize
+    Total=count(),
+    Answered=countif(tobool(Properties["hasAnswer"])==true),
+    AvgConfidence=round(avg(todouble(Properties["confidence"])), 2)
+    by Day=bin(TimeGenerated, 1d)
+| extend AnswerRate=round(todouble(Answered)/todouble(Total)*100, 1)
+| order by Day asc)

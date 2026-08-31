@@ -1,0 +1,12 @@
+// Author: russrimm
+// Display name: Copilot Studio - Test Canvas Activity
+// Description: All bot activity from the Copilot Studio test canvas (author testing sessions only)
+// Categories: Power Platform
+// Resource types: Copilot Studio
+// Topic: Testing
+
+union isfuzzy=true (AppCustomEvents
+| where TimeGenerated > ago(7d)
+| where Properties["designMode"] == "True"
+| summarize Events=count(), UniqueTopics=dcount(tostring(Properties["dialogName"])) by Day=bin(TimeGenerated, 1d)
+| order by Day asc)

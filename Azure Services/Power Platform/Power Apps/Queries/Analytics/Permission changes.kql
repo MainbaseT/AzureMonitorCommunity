@@ -1,0 +1,14 @@
+// Author: russrimm
+// Display name: Power Apps - Permission Changes
+// Description: Sharing and permission modifications on Power Apps
+// Categories: Power Platform
+// Resource types: Power Apps
+// Topic: Governance
+// Prerequisites: Power Platform admin diagnostic settings connected to Log Analytics workspace
+
+PowerAppsActivity
+| where TimeGenerated > ago(30d)
+| where EventType has_any ("Permission", "Share", "Unshare", "RoleAssignment")
+| project TimeGenerated, EventType, AppName, UserId, TargetUserId=tostring(AdditionalInfo)
+| order by TimeGenerated desc
+| take 100

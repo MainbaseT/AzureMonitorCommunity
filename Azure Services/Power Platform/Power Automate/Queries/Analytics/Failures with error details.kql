@@ -1,0 +1,14 @@
+// Author: russrimm
+// Display name: Cloud Flow Activity - Failures with Error Details
+// Description: Recent failed flow runs with error codes and messages
+// Categories: Power Platform
+// Resource types: Power Automate
+// Topic: Troubleshooting
+// Prerequisites: Power Platform admin diagnostic settings connected to Log Analytics workspace
+
+CloudFlowActivity
+| where TimeGenerated > ago(7d)
+| where ResultStatus == "Failed" or ResultStatus == "Failure"
+| project TimeGenerated, FlowId, FlowDisplayName, ResultStatus, ErrorCode=tostring(AdditionalInfo), UserId
+| order by TimeGenerated desc
+| take 100

@@ -1,0 +1,25 @@
+// Author: russrimm
+// Display name: Copilot Studio - Topic Abandonment
+// Description: Topics that were started but never completed or cancelled - proxy for abandonment
+// Categories: Power Platform
+// Resource types: Copilot Studio
+// Topic: Usage Analytics
+
+let started = materialize(union isfuzzy=true (AppCustomEvents
+| where TimeGenerated > ago(30d)
+| where Properties["designMode"] != "True"
+| where Name == "DialogStart"
+| summarize Started=count() by Topic=tostring(Properties["dialogName"])));
+let ended = materialize(union isfuzzy=true (AppCustomEvents
+| where TimeGenerated > ago(30d)
+| where Properties["designMode"] != "True"
+| where Name in ("DialogComplete", "DialogCancel", "DialogFail")
+| summarize Ended=count() by Topic=tostring(Properties["dialogName"])));
+started
+| join kind=leftouter ended on Topic
+| extend Ended=coalesce(Ended, 0)
+| extend Abandoned=Started - Ended
+| extend AbandonRate=round(todouble(Abandoned)/todouble(Started)*100, 1)
+| where Started > 5
+| order by AbandonRate desc
+| take 20

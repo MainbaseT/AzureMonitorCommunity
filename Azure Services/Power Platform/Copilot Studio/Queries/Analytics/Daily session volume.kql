@@ -1,0 +1,12 @@
+// Author: russrimm
+// Display name: Copilot Studio - Daily Session Volume
+// Description: Unique conversation sessions per day, excluding test canvas
+// Categories: Power Platform
+// Resource types: Copilot Studio
+// Topic: Usage Analytics
+
+union isfuzzy=true (AppCustomEvents
+| where TimeGenerated > ago(30d)
+| where Properties["designMode"] != "True"
+| summarize Sessions=dcount(tostring(Properties["conversationId"])) by Day=bin(TimeGenerated, 1d)
+| order by Day asc)

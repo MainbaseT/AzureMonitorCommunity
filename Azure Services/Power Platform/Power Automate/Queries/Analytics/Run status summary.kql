@@ -1,0 +1,12 @@
+// Author: russrimm
+// Display name: Cloud Flow Activity - Run Status Summary
+// Description: Daily flow run counts by status (Succeeded, Failed, Cancelled, Running)
+// Categories: Power Platform
+// Resource types: Power Automate
+// Topic: Usage Analytics
+// Prerequisites: Power Platform admin diagnostic settings connected to Log Analytics workspace
+
+CloudFlowActivity
+| where TimeGenerated > ago(30d)
+| summarize RunCount=count() by Status=ResultStatus, Day=bin(TimeGenerated, 1d)
+| order by Day asc

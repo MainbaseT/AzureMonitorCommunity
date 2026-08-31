@@ -1,0 +1,14 @@
+// Author: russrimm
+// Display name: Dataverse - Plugin and Workflow Failures
+// Description: Failed plugin executions and workflow errors in Dataverse
+// Categories: Power Platform
+// Resource types: Dataverse
+// Topic: Troubleshooting
+// Prerequisites: Power Platform admin diagnostic settings connected to Log Analytics workspace
+
+DataverseActivity
+| where TimeGenerated > ago(7d)
+| where Operation has_any ("Plugin", "Workflow") and (ResultStatus == "Failure" or ResultStatus == "Failed")
+| project TimeGenerated, Operation, EntityName, UserId, ErrorMessage=tostring(AdditionalInfo)
+| order by TimeGenerated desc
+| take 100

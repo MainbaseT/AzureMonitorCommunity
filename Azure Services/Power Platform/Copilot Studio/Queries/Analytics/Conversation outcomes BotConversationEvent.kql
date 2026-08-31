@@ -1,0 +1,12 @@
+// Author: russrimm
+// Display name: Copilot Studio - Conversation Outcomes (BotConversationEvent)
+// Description: Resolved, escalated, and abandoned conversation counts from BotConversationEvent
+// Categories: Power Platform
+// Resource types: Copilot Studio
+// Topic: Usage Analytics
+// Prerequisites: Power Platform diagnostic settings connected to Log Analytics workspace
+
+union isfuzzy=true (BotConversationEvent
+| where TimeGenerated > ago(30d)
+| summarize ConversationCount=dcount(ConversationId) by Outcome, Channel
+| order by ConversationCount desc)

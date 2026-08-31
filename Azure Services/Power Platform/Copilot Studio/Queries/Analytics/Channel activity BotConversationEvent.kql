@@ -1,0 +1,12 @@
+// Author: russrimm
+// Display name: Copilot Studio - Channel Activity (BotConversationEvent)
+// Description: Sessions per channel per day from BotConversationEvent
+// Categories: Power Platform
+// Resource types: Copilot Studio
+// Topic: Usage Analytics
+// Prerequisites: Power Platform diagnostic settings connected to Log Analytics workspace
+
+union isfuzzy=true (BotConversationEvent
+| where TimeGenerated > ago(30d)
+| summarize Sessions=dcount(ConversationId) by Day=bin(TimeGenerated, 1d), Channel
+| order by Day asc)

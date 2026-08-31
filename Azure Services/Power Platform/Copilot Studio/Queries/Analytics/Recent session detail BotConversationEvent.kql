@@ -1,0 +1,13 @@
+// Author: russrimm
+// Display name: Copilot Studio - Recent Session Detail (BotConversationEvent)
+// Description: Latest 100 bot conversation events for live debugging
+// Categories: Power Platform
+// Resource types: Copilot Studio
+// Topic: Troubleshooting
+// Prerequisites: Power Platform diagnostic settings connected to Log Analytics workspace
+
+union isfuzzy=true (BotConversationEvent
+| where TimeGenerated > ago(1d)
+| project TimeGenerated, Channel, DialogId, ActivityType, Outcome, ErrorCode, ConversationId, SessionId
+| order by TimeGenerated desc
+| take 100)

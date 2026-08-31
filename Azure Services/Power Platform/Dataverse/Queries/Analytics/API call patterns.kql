@@ -1,0 +1,13 @@
+// Author: russrimm
+// Display name: Dataverse - API Call Patterns
+// Description: SDK vs Web API usage and most-called entity/operation pairs
+// Categories: Power Platform
+// Resource types: Dataverse
+// Topic: Usage Analytics
+// Prerequisites: Power Platform admin diagnostic settings connected to Log Analytics workspace
+
+DataverseActivity
+| where TimeGenerated > ago(30d)
+| summarize Calls=count() by EntityName, Operation
+| order by Calls desc
+| take 30

@@ -1,0 +1,14 @@
+// Author: russrimm
+// Display name: Power Apps - Top 20 Most Used Apps
+// Description: Most frequently launched canvas and model-driven apps
+// Categories: Power Platform
+// Resource types: Power Apps
+// Topic: Usage Analytics
+// Prerequisites: Power Platform admin diagnostic settings connected to Log Analytics workspace
+
+PowerAppsActivity
+| where TimeGenerated > ago(30d)
+| where EventType == "AppLaunch"
+| summarize Launches=count(), UniqueUsers=dcount(UserId) by AppName, AppId
+| order by Launches desc
+| take 20

@@ -1,0 +1,12 @@
+// Author: russrimm
+// Display name: Cloud Flow Activity - Runs by Environment
+// Description: Flow run distribution across Power Platform environments
+// Categories: Power Platform
+// Resource types: Power Automate
+// Topic: Governance
+// Prerequisites: Power Platform admin diagnostic settings connected to Log Analytics workspace
+
+CloudFlowActivity
+| where TimeGenerated > ago(30d)
+| summarize Runs=count(), UniqueFlows=dcount(FlowId), UniqueUsers=dcount(UserId) by EnvironmentId
+| order by Runs desc

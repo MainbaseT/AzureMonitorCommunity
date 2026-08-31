@@ -1,0 +1,13 @@
+// Author: russrimm
+// Display name: Copilot Studio - Action and Plugin Call Traces
+// Description: Power Automate flow calls and HTTP action traces from bot conversations
+// Categories: Power Platform
+// Resource types: Copilot Studio
+// Topic: Troubleshooting
+
+union isfuzzy=true (AppTraces
+| where TimeGenerated > ago(7d)
+| where Message has_any ("PowerAutomate", "HttpAction", "SkillAction", "ActionResult", "PluginAction")
+| project TimeGenerated, Message, SeverityLevel, Properties
+| order by TimeGenerated desc
+| take 100)

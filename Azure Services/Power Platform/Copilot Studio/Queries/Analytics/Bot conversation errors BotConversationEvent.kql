@@ -1,0 +1,14 @@
+// Author: russrimm
+// Display name: Copilot Studio - Bot Conversation Errors (BotConversationEvent)
+// Description: Error events in conversations from BotConversationEvent with error code and message
+// Categories: Power Platform
+// Resource types: Copilot Studio
+// Topic: Troubleshooting
+// Prerequisites: Power Platform diagnostic settings connected to Log Analytics workspace
+
+union isfuzzy=true (BotConversationEvent
+| where TimeGenerated > ago(7d)
+| where isnotempty(ErrorCode) or Outcome == "Failure"
+| project TimeGenerated, BotId, Channel, DialogId, Outcome, ErrorCode, ErrorMessage, ConversationId
+| order by TimeGenerated desc
+| take 100)

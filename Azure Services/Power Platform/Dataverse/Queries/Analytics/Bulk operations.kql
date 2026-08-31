@@ -1,0 +1,13 @@
+// Author: russrimm
+// Display name: Dataverse - Bulk Operations
+// Description: ExecuteMultiple, bulk delete, and import operations
+// Categories: Power Platform
+// Resource types: Dataverse
+// Topic: Performance
+// Prerequisites: Power Platform admin diagnostic settings connected to Log Analytics workspace
+
+DataverseActivity
+| where TimeGenerated > ago(30d)
+| where Operation has_any ("ExecuteMultiple", "BulkDelete", "Import", "Export")
+| summarize Count=count(), AvgDurationMs=avg(todouble(DurationMs)) by Operation, Day=bin(TimeGenerated, 1d)
+| order by Day asc

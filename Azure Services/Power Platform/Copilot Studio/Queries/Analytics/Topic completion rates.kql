@@ -1,0 +1,21 @@
+// Author: russrimm
+// Display name: Copilot Studio - Topic Completion Rates
+// Description: Started, completed, cancelled, and failed counts per topic with completion percentage
+// Categories: Power Platform
+// Resource types: Copilot Studio
+// Topic: Usage Analytics
+
+union isfuzzy=true (AppCustomEvents
+| where TimeGenerated > ago(30d)
+| where Properties["designMode"] != "True"
+| where Name in ("DialogStart", "DialogComplete", "DialogCancel", "DialogFail")
+| summarize
+    Started=countif(Name=="DialogStart"),
+    Completed=countif(Name=="DialogComplete"),
+    Cancelled=countif(Name=="DialogCancel"),
+    Failed=countif(Name=="DialogFail")
+    by Topic=tostring(Properties["dialogName"])
+| where Started > 0
+| extend CompletionRate=round(todouble(Completed)/todouble(Started)*100, 1)
+| order by Started desc
+| take 20)

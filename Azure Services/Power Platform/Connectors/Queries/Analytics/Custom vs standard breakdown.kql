@@ -1,0 +1,13 @@
+// Author: russrimm
+// Display name: Connectors - Custom vs Standard Breakdown
+// Description: Compare usage of custom connectors against standard/premium connectors
+// Categories: Power Platform
+// Resource types: Power Platform Connectors
+// Topic: Governance
+// Prerequisites: Power Platform admin diagnostic settings connected to Log Analytics workspace
+
+PowerPlatformConnectorActivity
+| where TimeGenerated > ago(30d)
+| extend ConnectorType = iff(ConnectorId startswith "shared_", "Standard/Premium", "Custom")
+| summarize Calls=count(), UniqueUsers=dcount(UserId) by ConnectorType, ConnectorId
+| order by Calls desc

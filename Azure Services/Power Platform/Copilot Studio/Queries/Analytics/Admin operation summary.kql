@@ -1,0 +1,13 @@
+// Author: russrimm
+// Display name: Copilot Studio - Admin Operation Summary
+// Description: Count of bot admin operations by type over the last 30 days
+// Categories: Power Platform
+// Resource types: Copilot Studio
+// Topic: Governance
+// Prerequisites: Power Platform admin activity logs connected to Log Analytics workspace
+
+union isfuzzy=true (PowerPlatformAdminActivity
+| where TimeGenerated > ago(30d)
+| where EntityType == "Bot"
+| summarize Count=count(), SuccessCount=countif(ResultStatus=="Succeeded"), FailCount=countif(ResultStatus=="Failed") by Operation
+| order by Count desc)

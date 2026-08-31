@@ -1,0 +1,13 @@
+// Author: russrimm
+// Display name: Copilot Studio - Channel Breakdown
+// Description: Message volume by publishing channel, excluding test canvas
+// Categories: Power Platform
+// Resource types: Copilot Studio
+// Topic: Usage Analytics
+
+union isfuzzy=true (AppCustomEvents
+| where TimeGenerated > ago(30d)
+| where Properties["designMode"] != "True"
+| where Name == "BotMessageReceived"
+| summarize Messages=count() by Channel=tostring(Properties["channelId"])
+| order by Messages desc)

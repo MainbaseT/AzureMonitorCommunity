@@ -1,0 +1,14 @@
+// Author: russrimm
+// Display name: Cloud Flow Activity - Top 20 Most Active Flows
+// Description: Highest-volume flows by run count
+// Categories: Power Platform
+// Resource types: Power Automate
+// Topic: Usage Analytics
+// Prerequisites: Power Platform admin diagnostic settings connected to Log Analytics workspace
+
+CloudFlowActivity
+| where TimeGenerated > ago(30d)
+| summarize Runs=count(), FailedRuns=countif(ResultStatus == "Failed"), UniqueUsers=dcount(UserId) by FlowDisplayName, FlowId
+| extend FailRate=round(todouble(FailedRuns)/todouble(Runs)*100, 1)
+| order by Runs desc
+| take 20

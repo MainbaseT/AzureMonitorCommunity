@@ -1,0 +1,12 @@
+// Author: russrimm
+// Display name: Connectors - Usage Summary by Day
+// Description: Daily connector invocation counts and distinct users
+// Categories: Power Platform
+// Resource types: Power Platform Connectors
+// Topic: Usage Analytics
+// Prerequisites: Power Platform admin diagnostic settings connected to Log Analytics workspace
+
+PowerPlatformConnectorActivity
+| where TimeGenerated > ago(30d)
+| summarize Calls=count(), UniqueUsers=dcount(UserId) by Day=bin(TimeGenerated, 1d)
+| order by Day asc

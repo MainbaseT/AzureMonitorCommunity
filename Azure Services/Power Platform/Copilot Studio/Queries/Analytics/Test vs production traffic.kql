@@ -1,0 +1,13 @@
+// Author: russrimm
+// Display name: Copilot Studio - Test vs Production Traffic
+// Description: Compare event counts from test canvas vs real users per day
+// Categories: Power Platform
+// Resource types: Copilot Studio
+// Topic: Testing
+
+union isfuzzy=true (AppCustomEvents
+| where TimeGenerated > ago(14d)
+| where Name == "BotMessageReceived"
+| extend TrafficType = iff(tostring(Properties["designMode"]) == "True", "Test Canvas", "Production")
+| summarize Messages=count() by Day=bin(TimeGenerated, 1d), TrafficType
+| order by Day asc)

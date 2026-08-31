@@ -1,0 +1,14 @@
+// Author: russrimm
+// Display name: Connectors - Failures and Throttling
+// Description: Failed connector calls and throttled requests with error details
+// Categories: Power Platform
+// Resource types: Power Platform Connectors
+// Topic: Troubleshooting
+// Prerequisites: Power Platform admin diagnostic settings connected to Log Analytics workspace
+
+PowerPlatformConnectorActivity
+| where TimeGenerated > ago(7d)
+| where ResultStatus == "Failure" or ResultStatus == "Throttled"
+| project TimeGenerated, ConnectorId, OperationName, ResultStatus, ErrorMessage=tostring(AdditionalInfo), UserId
+| order by TimeGenerated desc
+| take 100

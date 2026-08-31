@@ -1,0 +1,13 @@
+// Author: russrimm
+// Display name: Power Apps - App Lifecycle Operations
+// Description: Create, update, delete, and publish operations across Power Apps
+// Categories: Power Platform
+// Resource types: Power Apps
+// Topic: Governance
+// Prerequisites: Power Platform admin diagnostic settings connected to Log Analytics workspace
+
+PowerAppsActivity
+| where TimeGenerated > ago(30d)
+| where EventType in ("AppCreate", "AppUpdate", "AppDelete", "AppPublish")
+| summarize Count=count() by EventType, bin(TimeGenerated, 1d)
+| order by TimeGenerated asc

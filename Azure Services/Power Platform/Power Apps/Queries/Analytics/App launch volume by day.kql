@@ -1,0 +1,13 @@
+// Author: russrimm
+// Display name: Power Apps - App Launch Volume by Day
+// Description: Daily count of Power App launches with distinct user counts
+// Categories: Power Platform
+// Resource types: Power Apps
+// Topic: Usage Analytics
+// Prerequisites: Power Platform admin diagnostic settings connected to Log Analytics workspace
+
+PowerAppsActivity
+| where TimeGenerated > ago(30d)
+| where EventType == "AppLaunch"
+| summarize Launches=count(), Users=dcount(UserId) by Day=bin(TimeGenerated, 1d)
+| order by Day asc

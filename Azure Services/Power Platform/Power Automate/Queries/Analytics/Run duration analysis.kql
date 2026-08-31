@@ -1,0 +1,18 @@
+// Author: russrimm
+// Display name: Cloud Flow Activity - Run Duration Analysis
+// Description: Average and P95 flow run durations to identify slow flows
+// Categories: Power Platform
+// Resource types: Power Automate
+// Topic: Performance
+// Prerequisites: Power Platform admin diagnostic settings connected to Log Analytics workspace
+
+CloudFlowActivity
+| where TimeGenerated > ago(30d)
+| where isnotempty(DurationMs)
+| summarize
+    AvgDurationMs=round(avg(todouble(DurationMs)), 0),
+    P95DurationMs=round(percentile(todouble(DurationMs), 95), 0),
+    RunCount=count()
+    by FlowDisplayName, FlowId
+| order by P95DurationMs desc
+| take 20
