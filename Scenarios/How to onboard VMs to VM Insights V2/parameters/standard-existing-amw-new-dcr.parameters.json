@@ -1,0 +1,19 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+    "contentVersion": "1.0.0.0",
+    "metadata": {
+        "description": "Standard free-tier VMI onboarding: creates a new DCR using an existing AMW. No per-process metrics, no alerts."
+    },
+    "parameters": {
+        "vmName":                    { "value": "<YOUR_VM_NAME>" },
+        "vmResourceGroup":           { "value": "<YOUR_VM_RESOURCE_GROUP>" },
+        "vmSubscriptionId":          { "value": "<YOUR_SUBSCRIPTION_ID>" },
+        "location":                  { "value": "<YOUR_LOCATION>" },
+        "osType":                    { "value": "Linux" },
+        "createNewAmw":              { "value": false },
+        "existingAmwResourceId":     { "value": "/subscriptions/<SUB>/resourceGroups/<RG>/providers/microsoft.monitor/accounts/<AMW_NAME>" },
+        "createNewDcr":              { "value": true },
+        "enablePerProcessMetrics":   { "value": false },
+        "enableAlerts":              { "value": false }
+    }
+}

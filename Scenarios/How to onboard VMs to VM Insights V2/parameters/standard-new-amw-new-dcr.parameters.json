@@ -1,0 +1,19 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+    "contentVersion": "1.0.0.0",
+    "metadata": {
+        "description": "Standard free-tier VMI onboarding: creates a new AMW and new DCR with system-level OTel metrics. No per-process metrics, no alerts."
+    },
+    "parameters": {
+        "vmName":                    { "value": "<YOUR_VM_NAME>" },
+        "vmResourceGroup":           { "value": "<YOUR_VM_RESOURCE_GROUP>" },
+        "vmSubscriptionId":          { "value": "<YOUR_SUBSCRIPTION_ID>" },
+        "location":                  { "value": "<YOUR_LOCATION>" },
+        "osType":                    { "value": "Linux" },
+        "createNewAmw":              { "value": true },
+        "amwName":                   { "value": "<YOUR_AMW_NAME>" },
+        "createNewDcr":              { "value": true },
+        "enablePerProcessMetrics":   { "value": false },
+        "enableAlerts":              { "value": false }
+    }
+}

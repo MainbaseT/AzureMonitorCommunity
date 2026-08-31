@@ -1,0 +1,746 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "vmName": {
+            "type": "string",
+            "metadata": { "description": "Name of the existing virtual machine to onboard." }
+        },
+        "vmResourceGroup": {
+            "type": "string",
+            "metadata": { "description": "Resource group containing the VM." }
+        },
+        "vmSubscriptionId": {
+            "type": "string",
+            "metadata": { "description": "Subscription ID of the VM." }
+        },
+        "location": {
+            "type": "string",
+            "metadata": { "description": "Azure region (must match VM location, e.g. eastus2)." }
+        },
+        "osType": {
+            "type": "string",
+            "defaultValue": "Linux",
+            "allowedValues": [ "Windows", "Linux" ],
+            "metadata": { "description": "OS type of the VM, which determines the AMA extension to install." }
+        },
+        "enableSystemAssignedIdentity": {
+            "type": "bool",
+            "defaultValue": true,
+            "metadata": { "description": "Enable system-assigned managed identity on the VM (required by AMA). Safe to set true even if already enabled." }
+        },
+        "identityType": {
+            "type": "string",
+            "defaultValue": "SystemAssigned",
+            "allowedValues": [ "SystemAssigned", "SystemAssigned, UserAssigned" ],
+            "metadata": { "description": "Use 'SystemAssigned, UserAssigned' if the VM already has user-assigned identities to avoid overwriting them." }
+        },
+        "createNewAmw": {
+            "type": "bool",
+            "defaultValue": false,
+            "metadata": { "description": "Set to true to create a new Azure Monitor Workspace. Set to false to use an existing one via 'existingAmwResourceId'." }
+        },
+        "amwName": {
+            "type": "string",
+            "defaultValue": "",
+            "metadata": { "description": "Name for the new Azure Monitor Workspace. Required when createNewAmw=true." }
+        },
+        "amwResourceGroup": {
+            "type": "string",
+            "defaultValue": "[parameters('vmResourceGroup')]",
+            "metadata": { "description": "Resource group for the new AMW. Defaults to VM resource group." }
+        },
+        "existingAmwResourceId": {
+            "type": "string",
+            "defaultValue": "",
+            "metadata": { "description": "Full resource ID of an existing Azure Monitor Workspace. Required when createNewAmw=false." }
+        },
+        "createNewLogAnalyticsWorkspace": {
+            "type": "bool",
+            "defaultValue": false,
+            "metadata": { "description": "Set to true to create a new Log Analytics workspace. Only used when enablePerProcessMetrics=true." }
+        },
+        "logAnalyticsWorkspaceName": {
+            "type": "string",
+            "defaultValue": "",
+            "metadata": { "description": "Name for the new Log Analytics workspace. Required when createNewLogAnalyticsWorkspace=true." }
+        },
+        "logAnalyticsResourceGroup": {
+            "type": "string",
+            "defaultValue": "[parameters('vmResourceGroup')]",
+            "metadata": { "description": "Resource group for the new Log Analytics workspace. Defaults to VM resource group." }
+        },
+        "existingLogAnalyticsWorkspaceId": {
+            "type": "string",
+            "defaultValue": "",
+            "metadata": { "description": "Full resource ID of an existing Log Analytics workspace. Required when enablePerProcessMetrics=true and createNewLogAnalyticsWorkspace=false." }
+        },
+        "createNewDcr": {
+            "type": "bool",
+            "defaultValue": true,
+            "metadata": { "description": "Set to true to create a new Data Collection Rule. Set to false to use an existing one via 'existingDcrId'." }
+        },
+        "dcrName": {
+            "type": "string",
+            "defaultValue": "[concat('msvmi-', parameters('location'), '-', parameters('vmName'))]",
+            "metadata": { "description": "Name for the new DCR. Defaults to msvmi-{location}-{vmName}." }
+        },
+        "dcrResourceGroup": {
+            "type": "string",
+            "defaultValue": "[parameters('vmResourceGroup')]",
+            "metadata": { "description": "Resource group for the new DCR. Defaults to VM resource group." }
+        },
+        "existingDcrId": {
+            "type": "string",
+            "defaultValue": "",
+            "metadata": { "description": "Full resource ID of an existing DCR. Required when createNewDcr=false." }
+        },
+        "enablePerProcessMetrics": {
+            "type": "bool",
+            "defaultValue": false,
+            "metadata": { "description": "Enable per-process metrics (paid tier). Adds process.* OTel counters and InsightsMetrics/DetailedMetrics via Log Analytics. Requires a Log Analytics workspace." }
+        },
+        "enableAlerts": {
+            "type": "bool",
+            "defaultValue": false,
+            "metadata": { "description": "Create recommended VM Insights alert rules (VM Availability + guest OS alerts for CPU, memory, disk, network)." }
+        },
+        "uamiResourceId": {
+            "type": "string",
+            "defaultValue": "",
+            "metadata": { "description": "Full resource ID of a User-Assigned Managed Identity for guest OS PromQL-based alerts. Required when enableAlerts=true." }
+        }
+    },
+    "variables": {
+        "amaExtensionType": "[if(equals(parameters('osType'), 'Windows'), 'AzureMonitorWindowsAgent', 'AzureMonitorLinuxAgent')]",
+        "vmResourceId": "[concat('/subscriptions/', parameters('vmSubscriptionId'), '/resourceGroups/', parameters('vmResourceGroup'), '/providers/Microsoft.Compute/virtualMachines/', parameters('vmName'))]",
+        "amwResourceId": "[if(parameters('createNewAmw'), concat('/subscriptions/', parameters('vmSubscriptionId'), '/resourceGroups/', parameters('amwResourceGroup'), '/providers/microsoft.monitor/accounts/', parameters('amwName')), parameters('existingAmwResourceId'))]",
+        "logAnalyticsWorkspaceId": "[if(parameters('createNewLogAnalyticsWorkspace'), concat('/subscriptions/', parameters('vmSubscriptionId'), '/resourceGroups/', parameters('logAnalyticsResourceGroup'), '/providers/microsoft.operationalinsights/workspaces/', parameters('logAnalyticsWorkspaceName')), parameters('existingLogAnalyticsWorkspaceId'))]",
+        "dcrResourceId": "[if(parameters('createNewDcr'), concat('/subscriptions/', parameters('vmSubscriptionId'), '/resourceGroups/', parameters('dcrResourceGroup'), '/providers/Microsoft.Insights/dataCollectionRules/', parameters('dcrName')), parameters('existingDcrId'))]",
+        "dcraResourceId": "[concat(variables('vmResourceId'), '/providers/Microsoft.Insights/dataCollectionRuleAssociations/VirtualMachineInsightsExtension')]"
+    },
+    "resources": [
+        {
+            "comments": "--- Enable system-assigned managed identity on the VM (required by AMA) ---",
+            "type": "microsoft.resources/deployments",
+            "apiVersion": "2021-04-01",
+            "name": "EnableVMSystemIdentity",
+            "condition": "[parameters('enableSystemAssignedIdentity')]",
+            "properties": {
+                "mode": "Incremental",
+                "template": {
+                    "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+                    "contentVersion": "1.0.0.0",
+                    "resources": [
+                        {
+                            "type": "Microsoft.Compute/virtualMachines",
+                            "apiVersion": "2022-11-01",
+                            "name": "[parameters('vmName')]",
+                            "location": "[parameters('location')]",
+                            "identity": {
+                                "type": "[parameters('identityType')]"
+                            }
+                        }
+                    ]
+                }
+            },
+            "subscriptionId": "[parameters('vmSubscriptionId')]",
+            "resourceGroup": "[parameters('vmResourceGroup')]"
+        },
+        {
+            "comments": "--- Create a new Azure Monitor Workspace ---",
+            "type": "microsoft.resources/deployments",
+            "apiVersion": "2021-04-01",
+            "name": "CreateAMW",
+            "condition": "[parameters('createNewAmw')]",
+            "properties": {
+                "mode": "Incremental",
+                "template": {
+                    "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+                    "contentVersion": "1.0.0.0",
+                    "resources": [
+                        {
+                            "type": "microsoft.monitor/accounts",
+                            "apiVersion": "2023-04-03",
+                            "name": "[parameters('amwName')]",
+                            "location": "[parameters('location')]",
+                            "properties": {}
+                        }
+                    ]
+                }
+            },
+            "subscriptionId": "[parameters('vmSubscriptionId')]",
+            "resourceGroup": "[parameters('amwResourceGroup')]"
+        },
+        {
+            "comments": "--- Create a new Log Analytics workspace (for per-process metrics) ---",
+            "type": "microsoft.resources/deployments",
+            "apiVersion": "2021-04-01",
+            "name": "CreateLogAnalyticsWorkspace",
+            "condition": "[and(parameters('createNewLogAnalyticsWorkspace'), parameters('enablePerProcessMetrics'))]",
+            "properties": {
+                "mode": "Incremental",
+                "template": {
+                    "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+                    "contentVersion": "1.0.0.0",
+                    "resources": [
+                        {
+                            "type": "Microsoft.OperationalInsights/workspaces",
+                            "apiVersion": "2022-10-01",
+                            "name": "[parameters('logAnalyticsWorkspaceName')]",
+                            "location": "[parameters('location')]",
+                            "properties": {
+                                "sku": { "name": "PerGB2018" },
+                                "retentionInDays": 30
+                            }
+                        }
+                    ]
+                }
+            },
+            "subscriptionId": "[parameters('vmSubscriptionId')]",
+            "resourceGroup": "[parameters('logAnalyticsResourceGroup')]"
+        },
+        {
+            "comments": "--- DCR: Standard OTel metrics only (free tier) ---",
+            "type": "microsoft.resources/deployments",
+            "apiVersion": "2021-04-01",
+            "name": "CreateStandardDCR",
+            "condition": "[and(parameters('createNewDcr'), not(parameters('enablePerProcessMetrics')))]",
+            "dependsOn": [
+                "microsoft.resources/deployments/CreateAMW"
+            ],
+            "properties": {
+                "mode": "Incremental",
+                "template": {
+                    "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+                    "contentVersion": "1.0.0.0",
+                    "resources": [
+                        {
+                            "type": "Microsoft.Insights/dataCollectionRules",
+                            "apiVersion": "2024-03-11",
+                            "name": "[parameters('dcrName')]",
+                            "location": "[parameters('location')]",
+                            "properties": {
+                                "dataSources": {
+                                    "performanceCountersOTel": [
+                                        {
+                                            "name": "OtelDataSource",
+                                            "streams": [ "Microsoft-OtelPerfMetrics" ],
+                                            "samplingFrequencyInSeconds": 60,
+                                            "counterSpecifiers": [
+                                                "system.filesystem.usage",
+                                                "system.disk.io",
+                                                "system.disk.operation_time",
+                                                "system.disk.operations",
+                                                "system.memory.usage",
+                                                "system.network.io",
+                                                "system.cpu.time",
+                                                "system.network.dropped",
+                                                "system.network.errors",
+                                                "system.uptime"
+                                            ]
+                                        }
+                                    ]
+                                },
+                                "destinations": {
+                                    "monitoringAccounts": [
+                                        {
+                                            "accountResourceId": "[variables('amwResourceId')]",
+                                            "name": "MonitoringAccountDestination"
+                                        }
+                                    ]
+                                },
+                                "dataFlows": [
+                                    {
+                                        "streams": [ "Microsoft-OtelPerfMetrics" ],
+                                        "destinations": [ "MonitoringAccountDestination" ]
+                                    }
+                                ]
+                            }
+                        }
+                    ]
+                }
+            },
+            "subscriptionId": "[parameters('vmSubscriptionId')]",
+            "resourceGroup": "[parameters('dcrResourceGroup')]"
+        },
+        {
+            "comments": "--- DCR: Per-process metrics (paid tier), OTel + InsightsMetrics/DetailedMetrics ---",
+            "type": "microsoft.resources/deployments",
+            "apiVersion": "2021-04-01",
+            "name": "CreatePerProcessDCR",
+            "condition": "[and(parameters('createNewDcr'), parameters('enablePerProcessMetrics'))]",
+            "dependsOn": [
+                "microsoft.resources/deployments/CreateAMW",
+                "microsoft.resources/deployments/CreateLogAnalyticsWorkspace"
+            ],
+            "properties": {
+                "mode": "Incremental",
+                "template": {
+                    "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+                    "contentVersion": "1.0.0.0",
+                    "resources": [
+                        {
+                            "type": "Microsoft.Insights/dataCollectionRules",
+                            "apiVersion": "2024-03-11",
+                            "name": "[parameters('dcrName')]",
+                            "location": "[parameters('location')]",
+                            "properties": {
+                                "dataSources": {
+                                    "performanceCounters": [
+                                        {
+                                            "name": "Microsoft-InsightsMetrics",
+                                            "streams": [ "Microsoft-InsightsMetrics" ],
+                                            "scheduledTransferPeriod": "PT1M",
+                                            "samplingFrequencyInSeconds": 60,
+                                            "counterSpecifiers": [
+                                                "\\VmInsights\\DetailedMetrics"
+                                            ]
+                                        }
+                                    ],
+                                    "performanceCountersOTel": [
+                                        {
+                                            "name": "OtelDataSource",
+                                            "streams": [ "Microsoft-OtelPerfMetrics" ],
+                                            "samplingFrequencyInSeconds": 60,
+                                            "counterSpecifiers": [
+                                                "system.filesystem.usage",
+                                                "system.disk.io",
+                                                "system.disk.operation_time",
+                                                "system.disk.operations",
+                                                "system.memory.usage",
+                                                "system.network.io",
+                                                "system.cpu.time",
+                                                "system.network.dropped",
+                                                "system.network.errors",
+                                                "system.uptime",
+                                                "process.uptime",
+                                                "process.cpu.time",
+                                                "process.cpu.utilization",
+                                                "process.memory.usage",
+                                                "process.memory.virtual",
+                                                "process.memory.utilization",
+                                                "process.disk.io",
+                                                "process.disk.operations",
+                                                "process.paging.faults",
+                                                "process.open_file_descriptors",
+                                                "process.threads",
+                                                "process.handles",
+                                                "process.context_switches",
+                                                "process.signals_pending",
+                                                "system.processes.count",
+                                                "system.processes.created"
+                                            ]
+                                        }
+                                    ]
+                                },
+                                "destinations": {
+                                    "logAnalytics": [
+                                        {
+                                            "workspaceResourceId": "[variables('logAnalyticsWorkspaceId')]",
+                                            "name": "vmInsightworkspace"
+                                        }
+                                    ],
+                                    "monitoringAccounts": [
+                                        {
+                                            "accountResourceId": "[variables('amwResourceId')]",
+                                            "name": "MonitoringAccountDestination"
+                                        }
+                                    ]
+                                },
+                                "dataFlows": [
+                                    {
+                                        "streams": [ "Microsoft-InsightsMetrics" ],
+                                        "destinations": [ "vmInsightworkspace" ]
+                                    },
+                                    {
+                                        "streams": [ "Microsoft-OtelPerfMetrics" ],
+                                        "destinations": [ "MonitoringAccountDestination" ]
+                                    }
+                                ]
+                            }
+                        }
+                    ]
+                }
+            },
+            "subscriptionId": "[parameters('vmSubscriptionId')]",
+            "resourceGroup": "[parameters('dcrResourceGroup')]"
+        },
+        {
+            "comments": "--- Associate DCR with VM ---",
+            "type": "microsoft.resources/deployments",
+            "apiVersion": "2021-04-01",
+            "name": "CreateDCRA",
+            "dependsOn": [
+                "microsoft.resources/deployments/CreateStandardDCR",
+                "microsoft.resources/deployments/CreatePerProcessDCR"
+            ],
+            "properties": {
+                "mode": "Incremental",
+                "template": {
+                    "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+                    "contentVersion": "1.0.0.0",
+                    "resources": [
+                        {
+                            "type": "Microsoft.Insights/dataCollectionRuleAssociations",
+                            "apiVersion": "2022-06-01",
+                            "name": "VirtualMachineInsightsExtension",
+                            "id": "[variables('dcraResourceId')]",
+                            "properties": {
+                                "description": "Association of data collection rule. Deleting this association will break the data collection for this virtual machine.",
+                                "dataCollectionRuleId": "[variables('dcrResourceId')]"
+                            },
+                            "scope": "[variables('vmResourceId')]"
+                        }
+                    ]
+                }
+            },
+            "subscriptionId": "[parameters('vmSubscriptionId')]",
+            "resourceGroup": "[parameters('vmResourceGroup')]"
+        },
+        {
+            "comments": "--- Install Azure Monitor Agent extension ---",
+            "type": "microsoft.resources/deployments",
+            "apiVersion": "2021-04-01",
+            "name": "InstallAMAExtension",
+            "dependsOn": [
+                "microsoft.resources/deployments/CreateDCRA",
+                "microsoft.resources/deployments/EnableVMSystemIdentity"
+            ],
+            "properties": {
+                "mode": "Incremental",
+                "template": {
+                    "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+                    "contentVersion": "1.0.0.0",
+                    "resources": [
+                        {
+                            "type": "microsoft.compute/virtualmachines/extensions",
+                            "apiVersion": "2022-11-01",
+                            "name": "[concat(parameters('vmName'), '/', variables('amaExtensionType'))]",
+                            "location": "[parameters('location')]",
+                            "properties": {
+                                "publisher": "Microsoft.Azure.Monitor",
+                                "type": "[variables('amaExtensionType')]",
+                                "typeHandlerVersion": "1.0",
+                                "autoUpgradeMinorVersion": true,
+                                "enableAutomaticUpgrade": true
+                            }
+                        }
+                    ]
+                }
+            },
+            "subscriptionId": "[parameters('vmSubscriptionId')]",
+            "resourceGroup": "[parameters('vmResourceGroup')]"
+        },
+        {
+            "comments": "--- Host alert: VM Availability (platform metric, no UAMI required) ---",
+            "type": "microsoft.resources/deployments",
+            "apiVersion": "2021-04-01",
+            "name": "CreateHostAlertRules",
+            "condition": "[parameters('enableAlerts')]",
+            "properties": {
+                "mode": "Incremental",
+                "template": {
+                    "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+                    "contentVersion": "1.0.0.0",
+                    "resources": [
+                        {
+                            "type": "Microsoft.Insights/metricAlerts",
+                            "apiVersion": "2018-03-01",
+                            "name": "[concat('VM Availability - ', parameters('vmName'))]",
+                            "location": "global",
+                            "properties": {
+                                "description": "VM is unavailable or not responding",
+                                "severity": 3,
+                                "enabled": true,
+                                "scopes": [ "[variables('vmResourceId')]" ],
+                                "evaluationFrequency": "PT5M",
+                                "windowSize": "PT5M",
+                                "criteria": {
+                                    "odata.type": "Microsoft.Azure.Monitor.SingleResourceMultipleMetricCriteria",
+                                    "allOf": [
+                                        {
+                                            "name": "Metric1",
+                                            "metricName": "VmAvailabilityMetric",
+                                            "metricNamespace": "Microsoft.Compute/virtualMachines",
+                                            "operator": "LessThan",
+                                            "threshold": 1,
+                                            "timeAggregation": "Average",
+                                            "criterionType": "StaticThresholdCriterion"
+                                        }
+                                    ]
+                                },
+                                "actions": []
+                            }
+                        }
+                    ]
+                }
+            },
+            "subscriptionId": "[parameters('vmSubscriptionId')]",
+            "resourceGroup": "[parameters('vmResourceGroup')]"
+        },
+        {
+            "comments": "--- Guest OS alerts: CPU, Memory, Disk, Network (PromQL-based, requires UAMI) ---",
+            "type": "microsoft.resources/deployments",
+            "apiVersion": "2021-04-01",
+            "name": "CreateGuestAlertRules",
+            "condition": "[parameters('enableAlerts')]",
+            "properties": {
+                "mode": "Incremental",
+                "template": {
+                    "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+                    "contentVersion": "1.0.0.0",
+                    "resources": [
+                        {
+                            "type": "Microsoft.Insights/metricAlerts",
+                            "apiVersion": "2024-03-01-preview",
+                            "name": "[concat('Guest OS CPU Usage - ', parameters('vmName'))]",
+                            "location": "[parameters('location')]",
+                            "identity": {
+                                "type": "UserAssigned",
+                                "userAssignedIdentities": {
+                                    "[parameters('uamiResourceId')]": {}
+                                }
+                            },
+                            "properties": {
+                                "description": "CPU usage has exceeded 80% threshold over the last 5 minutes",
+                                "severity": 3,
+                                "enabled": true,
+                                "scopes": [ "[variables('vmResourceId')]" ],
+                                "evaluationFrequency": "PT1M",
+                                "criteria": {
+                                    "odata.type": "Microsoft.Azure.Monitor.PromQLCriteria",
+                                    "allOf": [
+                                        {
+                                            "name": "Metric1",
+                                            "query": "avg_over_time(((sum (irate({\"system.cpu.time\",\"state\" !~ \"idle|iowait|steal\"}[2m]))) / (sum (irate({\"system.cpu.time\"}[2m]))))[5m:]) * 100 > 80",
+                                            "criterionType": "StaticThresholdCriterion"
+                                        }
+                                    ],
+                                    "failingPeriods": { "for": "PT2M" }
+                                },
+                                "resolveConfiguration": {
+                                    "autoResolved": true,
+                                    "timeToResolve": "PT2M"
+                                },
+                                "actions": []
+                            }
+                        },
+                        {
+                            "type": "Microsoft.Insights/metricAlerts",
+                            "apiVersion": "2024-03-01-preview",
+                            "name": "[concat('Guest OS Memory Usage - ', parameters('vmName'))]",
+                            "location": "[parameters('location')]",
+                            "identity": {
+                                "type": "UserAssigned",
+                                "userAssignedIdentities": {
+                                    "[parameters('uamiResourceId')]": {}
+                                }
+                            },
+                            "properties": {
+                                "description": "Available memory has dropped below 1 GB over the last 5 minutes",
+                                "severity": 3,
+                                "enabled": true,
+                                "scopes": [ "[variables('vmResourceId')]" ],
+                                "evaluationFrequency": "PT1M",
+                                "criteria": {
+                                    "odata.type": "Microsoft.Azure.Monitor.PromQLCriteria",
+                                    "allOf": [
+                                        {
+                                            "name": "Metric1",
+                                            "query": "min_over_time((sum ({\"system.memory.usage\", state=~\"free|cached|buffered|slab_reclaimable\"}))[5m:]) < (1 * 1024 * 1024 * 1024)",
+                                            "criterionType": "StaticThresholdCriterion"
+                                        }
+                                    ],
+                                    "failingPeriods": { "for": "PT2M" }
+                                },
+                                "resolveConfiguration": {
+                                    "autoResolved": true,
+                                    "timeToResolve": "PT2M"
+                                },
+                                "actions": []
+                            }
+                        },
+                        {
+                            "type": "Microsoft.Insights/metricAlerts",
+                            "apiVersion": "2024-03-01-preview",
+                            "name": "[concat('Guest OS Disk IOPS - ', parameters('vmName'))]",
+                            "location": "[parameters('location')]",
+                            "identity": {
+                                "type": "UserAssigned",
+                                "userAssignedIdentities": {
+                                    "[parameters('uamiResourceId')]": {}
+                                }
+                            },
+                            "properties": {
+                                "description": "Disk IOPS has exceeded 5000 operations per second over the last 5 minutes",
+                                "severity": 3,
+                                "enabled": true,
+                                "scopes": [ "[variables('vmResourceId')]" ],
+                                "evaluationFrequency": "PT1M",
+                                "criteria": {
+                                    "odata.type": "Microsoft.Azure.Monitor.PromQLCriteria",
+                                    "allOf": [
+                                        {
+                                            "name": "Metric1",
+                                            "query": "max_over_time((sum (irate({\"system.disk.operations\"}[2m])))[5m:]) > 5000",
+                                            "criterionType": "StaticThresholdCriterion"
+                                        }
+                                    ],
+                                    "failingPeriods": { "for": "PT2M" }
+                                },
+                                "resolveConfiguration": {
+                                    "autoResolved": true,
+                                    "timeToResolve": "PT2M"
+                                },
+                                "actions": []
+                            }
+                        },
+                        {
+                            "type": "Microsoft.Insights/metricAlerts",
+                            "apiVersion": "2024-03-01-preview",
+                            "name": "[concat('Guest OS Network In - ', parameters('vmName'))]",
+                            "location": "[parameters('location')]",
+                            "identity": {
+                                "type": "UserAssigned",
+                                "userAssignedIdentities": {
+                                    "[parameters('uamiResourceId')]": {}
+                                }
+                            },
+                            "properties": {
+                                "description": "Total network inbound traffic has exceeded 100 GB over the last day",
+                                "severity": 3,
+                                "enabled": true,
+                                "scopes": [ "[variables('vmResourceId')]" ],
+                                "evaluationFrequency": "PT1M",
+                                "criteria": {
+                                    "odata.type": "Microsoft.Azure.Monitor.PromQLCriteria",
+                                    "allOf": [
+                                        {
+                                            "name": "Metric1",
+                                            "query": "sum_over_time((sum (irate({\"system.network.io\", direction=\"receive\"}[2m])))[1d:]) > (100 * 1024 * 1024 * 1024)",
+                                            "criterionType": "StaticThresholdCriterion"
+                                        }
+                                    ],
+                                    "failingPeriods": { "for": "PT2M" }
+                                },
+                                "resolveConfiguration": {
+                                    "autoResolved": true,
+                                    "timeToResolve": "PT2M"
+                                },
+                                "actions": []
+                            }
+                        },
+                        {
+                            "type": "Microsoft.Insights/metricAlerts",
+                            "apiVersion": "2024-03-01-preview",
+                            "name": "[concat('Guest OS Network Out - ', parameters('vmName'))]",
+                            "location": "[parameters('location')]",
+                            "identity": {
+                                "type": "UserAssigned",
+                                "userAssignedIdentities": {
+                                    "[parameters('uamiResourceId')]": {}
+                                }
+                            },
+                            "properties": {
+                                "description": "Total network outbound traffic has exceeded 50 GB over the last day",
+                                "severity": 3,
+                                "enabled": true,
+                                "scopes": [ "[variables('vmResourceId')]" ],
+                                "evaluationFrequency": "PT1M",
+                                "criteria": {
+                                    "odata.type": "Microsoft.Azure.Monitor.PromQLCriteria",
+                                    "allOf": [
+                                        {
+                                            "name": "Metric1",
+                                            "query": "sum_over_time((sum (irate({\"system.network.io\", direction=\"transmit\"}[2m])))[1d:]) > (50 * 1024 * 1024 * 1024)",
+                                            "criterionType": "StaticThresholdCriterion"
+                                        }
+                                    ],
+                                    "failingPeriods": { "for": "PT2M" }
+                                },
+                                "resolveConfiguration": {
+                                    "autoResolved": true,
+                                    "timeToResolve": "PT2M"
+                                },
+                                "actions": []
+                            }
+                        },
+                        {
+                            "type": "Microsoft.Insights/metricAlerts",
+                            "apiVersion": "2024-03-01-preview",
+                            "name": "[concat('Guest OS Network Errors - ', parameters('vmName'))]",
+                            "location": "[parameters('location')]",
+                            "identity": {
+                                "type": "UserAssigned",
+                                "userAssignedIdentities": {
+                                    "[parameters('uamiResourceId')]": {}
+                                }
+                            },
+                            "properties": {
+                                "description": "Network errors have exceeded 10 total errors over the last 5 minutes",
+                                "severity": 3,
+                                "enabled": true,
+                                "scopes": [ "[variables('vmResourceId')]" ],
+                                "evaluationFrequency": "PT1M",
+                                "criteria": {
+                                    "odata.type": "Microsoft.Azure.Monitor.PromQLCriteria",
+                                    "allOf": [
+                                        {
+                                            "name": "Metric1",
+                                            "query": "sum_over_time((sum (irate({\"system.network.errors\"}[2m])))[5m:]) > 10",
+                                            "criterionType": "StaticThresholdCriterion"
+                                        }
+                                    ],
+                                    "failingPeriods": { "for": "PT2M" }
+                                },
+                                "resolveConfiguration": {
+                                    "autoResolved": true,
+                                    "timeToResolve": "PT2M"
+                                },
+                                "actions": []
+                            }
+                        },
+                        {
+                            "type": "Microsoft.Insights/metricAlerts",
+                            "apiVersion": "2024-03-01-preview",
+                            "name": "[concat('Guest OS Disk Operation Time - ', parameters('vmName'))]",
+                            "location": "[parameters('location')]",
+                            "identity": {
+                                "type": "UserAssigned",
+                                "userAssignedIdentities": {
+                                    "[parameters('uamiResourceId')]": {}
+                                }
+                            },
+                            "properties": {
+                                "description": "Average disk operation time has exceeded 100ms over the last 5 minutes",
+                                "severity": 3,
+                                "enabled": true,
+                                "scopes": [ "[variables('vmResourceId')]" ],
+                                "evaluationFrequency": "PT1M",
+                                "criteria": {
+                                    "odata.type": "Microsoft.Azure.Monitor.PromQLCriteria",
+                                    "allOf": [
+                                        {
+                                            "name": "Metric1",
+                                            "query": "avg_over_time(((sum (irate({\"system.disk.operation_time\"}[2m]))) / (sum (irate({\"system.disk.operations\"}[2m]))))[5m:]) * 1000 > 100",
+                                            "criterionType": "StaticThresholdCriterion"
+                                        }
+                                    ],
+                                    "failingPeriods": { "for": "PT2M" }
+                                },
+                                "resolveConfiguration": {
+                                    "autoResolved": true,
+                                    "timeToResolve": "PT2M"
+                                },
+                                "actions": []
+                            }
+                        }
+                    ]
+                }
+            },
+            "subscriptionId": "[parameters('vmSubscriptionId')]",
+            "resourceGroup": "[parameters('vmResourceGroup')]"
+        }
+    ]
+}

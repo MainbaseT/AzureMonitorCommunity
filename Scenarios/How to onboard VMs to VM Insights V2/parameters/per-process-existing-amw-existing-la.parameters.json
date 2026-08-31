@@ -1,0 +1,21 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+    "contentVersion": "1.0.0.0",
+    "metadata": {
+        "description": "Per-process metrics (paid tier) using existing AMW and existing LA workspace. Creates a new DCR. No alerts."
+    },
+    "parameters": {
+        "vmName":                            { "value": "<YOUR_VM_NAME>" },
+        "vmResourceGroup":                   { "value": "<YOUR_VM_RESOURCE_GROUP>" },
+        "vmSubscriptionId":                  { "value": "<YOUR_SUBSCRIPTION_ID>" },
+        "location":                          { "value": "<YOUR_LOCATION>" },
+        "osType":                            { "value": "Linux" },
+        "createNewAmw":                      { "value": false },
+        "existingAmwResourceId":             { "value": "/subscriptions/<SUB>/resourceGroups/<RG>/providers/microsoft.monitor/accounts/<AMW_NAME>" },
+        "createNewLogAnalyticsWorkspace":     { "value": false },
+        "existingLogAnalyticsWorkspaceId":    { "value": "/subscriptions/<SUB>/resourceGroups/<RG>/providers/microsoft.operationalinsights/workspaces/<LA_NAME>" },
+        "createNewDcr":                      { "value": true },
+        "enablePerProcessMetrics":           { "value": true },
+        "enableAlerts":                      { "value": false }
+    }
+}

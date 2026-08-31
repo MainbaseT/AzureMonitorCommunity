@@ -1,0 +1,19 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+    "contentVersion": "1.0.0.0",
+    "metadata": {
+        "description": "Reuse an existing DCR. Only creates the DCRA association and installs the AMA extension. Fastest onboarding for VMs sharing a DCR."
+    },
+    "parameters": {
+        "vmName":                    { "value": "<YOUR_VM_NAME>" },
+        "vmResourceGroup":           { "value": "<YOUR_VM_RESOURCE_GROUP>" },
+        "vmSubscriptionId":          { "value": "<YOUR_SUBSCRIPTION_ID>" },
+        "location":                  { "value": "<YOUR_LOCATION>" },
+        "osType":                    { "value": "Linux" },
+        "createNewAmw":              { "value": false },
+        "createNewDcr":              { "value": false },
+        "existingDcrId":             { "value": "/subscriptions/<SUB>/resourceGroups/<RG>/providers/Microsoft.Insights/dataCollectionRules/<DCR_NAME>" },
+        "enablePerProcessMetrics":   { "value": false },
+        "enableAlerts":              { "value": false }
+    }
+}
